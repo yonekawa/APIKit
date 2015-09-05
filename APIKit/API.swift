@@ -88,11 +88,18 @@ public class API {
                     dispatch_async(mainQueue) { handler(.failure(error)) }
                     return
                 }
-                
-                let statusCode = (URLResponse as? NSHTTPURLResponse)?.statusCode ?? 0
-                if !contains(self.acceptableStatusCodes, statusCode) {
+
+                if (URLResponse as? NSHTTPURLResponse) == nil {
+                    let userInfo = [NSLocalizedDescriptionKey: "response is not HTTPURLResponse."]
+                    let error = NSError(domain: APIKitErrorDomain, code: 0, userInfo: userInfo)
+                    dispatch_async(mainQueue) { handler(.failure(error)) }
+                    return
+                }
+
+                let URLResponse = URLResponse as! NSHTTPURLResponse
+                if !contains(self.acceptableStatusCodes, URLResponse.statusCode) {
                     let error = self.responseBodyParser.parseData(data).analysis(
-                        ifSuccess: { self.responseErrorFromObject($0) },
+                        ifSuccess: { self.responseErrorFromObject($0, URLResponse: URLResponse) },
                         ifFailure: { $0 }
                     )
 
@@ -157,9 +164,9 @@ public class API {
         }
     }
     
-    public class func responseErrorFromObject(object: AnyObject) -> NSError {
+    public class func responseErrorFromObject(object: AnyObject, URLResponse: NSHTTPURLResponse) -> NSError {
         let userInfo = [NSLocalizedDescriptionKey: "received status code that represents error"]
-        let error = NSError(domain: APIKitErrorDomain, code: 0, userInfo: userInfo)
+        let error = NSError(domain: APIKitErrorDomain, code: URLResponse.statusCode, userInfo: userInfo)
         return error
     }
 }
